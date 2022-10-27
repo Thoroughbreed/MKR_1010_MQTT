@@ -7,16 +7,23 @@
 #include <Adafruit_SSD1306.h>     // OLED
 #include "Adafruit_MQTT.h"        // MQTT
 #include "Adafruit_MQTT_Client.h" // MQTT
+#include <ArduinoJson.h>          // JSON
+#include <Servo.h>                // Servo
 
 /************************* WiFi Access Point *********************************/
 #define WLAN_SSID       "SibirienAP"
 #define WLAN_PASS       "Siberia51244"
 
 /************************* Brooker Setup *********************************/
-#define AIO_SERVER      "hackerman.cloud.shiftr.io"
+#define AIO_SERVER      "mqtt3.thingspeak.com"
 #define AIO_SERVERPORT  1883                   // use 8883 for SSL
-#define AIO_USERNAME    "hackerman"
-#define AIO_KEY         "NKV20rskFJWP8b7A"
+#define AIO_USERNAME    "Fw0mJzQqJBQ0JyQgACkwJig"
+#define AIO_CLIENTID    "Fw0mJzQqJBQ0JyQgACkwJig"
+#define AIO_KEY         "JnhZVIxT2gutEAGtCBLSEFMO"
+
+/************************* Servo *********************************/
+#define SERVO_PIN       9
+Servo servoOne;
 
 /************************* Var & const *********************************/
 String messageToDisplay;    // Message for OLED
@@ -25,6 +32,7 @@ long delayPub;
 long delayClimate;
 WiFiClient client;          // Wireless client
 //WiFiClientSecure client;  // SSL
+int servoPos = 0;           
 uint32_t t = 0;             // Temp from DHT11
 uint32_t h = 0;             // Humidity from DHT11
 
@@ -41,21 +49,25 @@ DHT dht(DHT_PIN, DHTTYPE);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // MQTT
-Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
+Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_CLIENTID, AIO_USERNAME, AIO_KEY);
 /****************************** Feeds ***************************************/
 // PUB
-Adafruit_MQTT_Publish temp = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/climate/temperature");
-Adafruit_MQTT_Publish humid = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/climate/humidity");
+Adafruit_MQTT_Publish pub = Adafruit_MQTT_Publish(&mqtt, "channels/1910465/publish");
+// Adafruit_MQTT_Publish humid = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/climate/humidity");
 
 // SUB
-Adafruit_MQTT_Subscribe text = Adafruit_MQTT_Subscribe(&mqtt, AIO_USERNAME "/text/oled");
+Adafruit_MQTT_Subscribe sub = Adafruit_MQTT_Subscribe(&mqtt, "channels/1910465/subscribe");
 
 /************************* Func prototyping *********************************/
 void MQTT_connect();
 void mqttSub();
 void mqttPub(int interval);
 void mqttPubAll(uint32_t value, Adafruit_MQTT_Publish topic);
+void mqqtSubParse(const char*);
 void getClimate(int interval);
+void runServo(int deg);
+void serialLog(const char*);
+void initServo();
 void initDisplay();
 void initWireless();
 void initRGB();

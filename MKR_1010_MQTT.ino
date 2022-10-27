@@ -2,6 +2,12 @@
 
 #pragma region Initialization
 
+void initServo()
+{
+	servoOne.attach(SERVO_PIN);
+	runServo(0);
+}
+
 void initRGB()
 {
   WiFiDrv::pinMode(25, OUTPUT);
@@ -18,7 +24,7 @@ void initDisplay()
 	}
 }
 
-void initWireless();
+void initWireless()
 {
   printOLED(0, 0, "Connecting to:", 1);
   printOLED(0, 10, WLAN_SSID, 2);
@@ -42,13 +48,14 @@ void setup()
 {
   initRGB();
   ledRed();
+  initServo();
   Serial.begin(9600);
   dht.begin();          
   initDisplay();
   display.clearDisplay();
   delay(10);
   initWireless();
-  mqtt.subscribe(&text);
+  mqtt.subscribe(&sub);
 }
 #pragma endregion
 
@@ -59,6 +66,7 @@ void printOLED(int x, int y, String text, int textSize)
   display.setTextColor(WHITE);
   display.setCursor(x, y);
   display.println(text);
+  display.display();
 }
 
 void updateOLED(int interval)
@@ -68,7 +76,6 @@ void updateOLED(int interval)
     delayOLED = millis();
     display.clearDisplay();
     printOLED(0, 0, messageToDisplay, 2);
-    display.display();
   }
 }
 #pragma endregion
@@ -115,32 +122,34 @@ void MQTT_connect()
 void mqttSub()
 {
   Adafruit_MQTT_Subscribe *subscription;
-  while ((subscription = mqtt.readSubscription())) {
-    if (subscription == &text)
+  while ((subscription = mqtt.readSubscription()))
+  {
+    if (subscription == &sub)
     {
-      Serial.print(F("Got: "));
-      Serial.println((char *)text.lastread);
-      messageToDisplay = (char *)text.lastread;
-      Serial.println(messageToDisplay);
-      flashWhite(75);
-      delayClimate = millis();
+      // Serial.print(F("Got: "));
+      // Serial.println((char *)sub.lastread);
+      mqqtSubParse((char *)sub.lastread);
     }
   }  
 }
 
 void mqttPub(int interval)
 {
+  String publishText = "";
   if ((millis() - delayPub) > interval)
   {
-    mqttPubAll(t, temp);
-    mqttPubAll(h, humid);
+    publishText += "field1=";
+    publishText += t;
+    publishText += "&field2=";
+    publishText += h;
+    mqttPubAll(publishText, pub);
   }
 }
 
-void mqttPubAll(uint32_t value, Adafruit_MQTT_Publish topic)
+void mqttPubAll(String payload, Adafruit_MQTT_Publish topic)
 {
   delayPub = millis();
-  if (! topic.publish(value))
+  if (! topic.publish(payload.c_str()))
   {
     Serial.println(F("Failed"));
   }
@@ -148,6 +157,53 @@ void mqttPubAll(uint32_t value, Adafruit_MQTT_Publish topic)
 #pragma endregion
 
 #pragma region Misc functions
+
+void mqqtSubParse(const char * payload)
+{
+  StaticJsonDocument<500> doc;
+
+  // const char* json = payload;
+
+  DeserializationError error = deserializeJson(doc, payload);
+
+  if (error) {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.f_str());
+    return;
+  }
+  const char* text = doc["field3"];
+  const char* rpc = doc["field4"];
+
+  if (text)
+  {
+    serialLog("Print text on oled ...");
+    flashWhite(75);
+    messageToDisplay = text;
+    delayClimate = millis();
+  }
+  if (rpc)
+  {
+    serialLog("RPC call ...");
+    serialLog(rpc);
+    flashWhite(25);  
+    String degree = rpc; 
+    runServo(degree.toInt());
+  }
+}
+
+void serialLog(const char* txt)
+{
+  Serial.println(txt);
+}
+
+void runServo(int deg)
+{
+  String txt = "Servo: ";
+  txt += deg;
+  printOLED(0, 15, txt);
+  servoOne.write(deg);
+}
+
 void getClimate(int interval)
 {
   if ((millis() - delayClimate) > interval)
@@ -215,10 +271,11 @@ void ledBlue()
 }
 #pragma endregion
 
-void loop() {
+void loop()
+{
   MQTT_connect();
   mqttSub();
   getClimate(5000);
-  mqttPub(5000);
+  mqttPub(25000);
   updateOLED(500);
 }
