@@ -2,8 +2,6 @@
 
 #pragma region Initialization
 
-
-
 void initServo()
 {
 	servoOne.attach(SERVO_PIN);
@@ -42,7 +40,7 @@ void initWireless()
     i++;
   }
   display.clearDisplay();
-  printOLED(0, 0, "WiFi connected!", 2);
+  printOLED(0, 0, "WiFi connected!");
   printOLED(0, 30, timeClient.getFormattedTime());
   display.display();
   delay(1000);
