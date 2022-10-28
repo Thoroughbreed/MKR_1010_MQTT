@@ -80,7 +80,7 @@ void updateOLED(int interval)
     delayOLED = millis();
     display.clearDisplay();
     printOLED(0, 0, messageToDisplay, 2);
-    printOLED(0, 30, timeClient.getFormattedTime());
+    printOLED(0, 55, timeClient.getFormattedTime());
     display.display();
   }
 }
@@ -148,8 +148,6 @@ void mqttSub()
   {
     if (subscription == &sub)
     {
-      // Serial.print(F("Got: "));
-      // Serial.println((char *)sub.lastread);
       mqqtSubParse((char *)sub.lastread);
     }
   }  
@@ -183,8 +181,6 @@ void mqttPubAll(String payload, Adafruit_MQTT_Publish topic)
 void mqqtSubParse(const char * payload)
 {
   StaticJsonDocument<500> doc;
-
-  // const char* json = payload;
 
   DeserializationError error = deserializeJson(doc, payload);
 
