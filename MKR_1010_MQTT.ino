@@ -66,7 +66,6 @@ void printOLED(int x, int y, String text, int textSize)
   display.setTextColor(WHITE);
   display.setCursor(x, y);
   display.println(text);
-  display.display();
 }
 
 void updateOLED(int interval)
@@ -76,6 +75,7 @@ void updateOLED(int interval)
     delayOLED = millis();
     display.clearDisplay();
     printOLED(0, 0, messageToDisplay, 2);
+    display.display();
   }
 }
 #pragma endregion
@@ -200,7 +200,9 @@ void runServo(int deg)
 {
   String txt = "Servo: ";
   txt += deg;
-  printOLED(0, 15, txt);
+  serialLog(txt.c_str());
+  // printOLED(15, 0, txt, 2);
+  display.display();
   servoOne.write(deg);
 }
 
