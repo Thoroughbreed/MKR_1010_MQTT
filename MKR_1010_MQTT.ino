@@ -2,6 +2,8 @@
 
 #pragma region Initialization
 
+
+
 void initServo()
 {
 	servoOne.attach(SERVO_PIN);
@@ -41,6 +43,8 @@ void initWireless()
   }
   display.clearDisplay();
   printOLED(0, 0, "WiFi connected!", 2);
+  printOLED(0, 30, timeClient.getFormattedTime());
+  display.display();
   delay(1000);
 }
 
@@ -54,7 +58,10 @@ void setup()
   initDisplay();
   display.clearDisplay();
   delay(10);
+  timeClient.begin();
+  timeClient.setTimeOffset(7200);
   initWireless();
+  getTime(0);
   mqtt.subscribe(&sub);
 }
 #pragma endregion
@@ -75,6 +82,7 @@ void updateOLED(int interval)
     delayOLED = millis();
     display.clearDisplay();
     printOLED(0, 0, messageToDisplay, 2);
+    printOLED(0, 30, timeClient.getFormattedTime());
     display.display();
   }
 }
@@ -94,21 +102,37 @@ void MQTT_connect()
   ledBlue();
   display.clearDisplay();
   printOLED(0, 0, "Conecting to MQTT ...");
+  printOLED(0, 30, timeClient.getFormattedTime());
   display.display();  
   Serial.print("Connecting to MQTT... ");
   uint8_t retries = 3;
-  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       Serial.println(mqtt.connectErrorString(ret));
-       Serial.println("Retrying MQTT connection in 5 seconds...");
-       printOLED(0, 10, "Retrying MQTT conn.");
-       display.display();
-       mqtt.disconnect();
-       delay(5000);  // wait 5 seconds
-       retries--;
-       if (retries == 0) {
-         // basically die and wait for WDT to reset me
-         while (1);
-       }
+  while ((ret = mqtt.connect()) != 0) // connect will return 0 for connected
+  { 
+    display.clearDisplay();
+    printOLED(0, 0, "Conecting to MQTT ...");
+    Serial.println(mqtt.connectErrorString(ret));
+    Serial.println("Retrying MQTT connection in 5 seconds...");
+    printOLED(0, 10, "Retrying MQTT conn.");
+    printOLED(0, 30, timeClient.getFormattedTime());
+    display.display();
+    mqtt.disconnect();
+    delay(5000);  // wait 5 seconds
+    retries--;
+    if (retries == 0)
+    {
+      // basically die and wait for WDT to reset me
+      while (1)
+      {
+        display.clearDisplay();
+        printOLED(0, 0, "Conecting to MQTT ...");
+        printOLED(0, 10, "Retrying MQTT conn.");
+        printOLED(0, 20, "MQTT conn. dead");
+        printOLED(0, 30, timeClient.getFormattedTime());
+        printOLED(0, 40, "Check settings!");
+        display.display();
+        delay(999);
+      };
+    }
   }
   display.clearDisplay();
   printOLED(0, 0, "Conecting to MQTT ...");
@@ -220,6 +244,15 @@ void getClimate(int interval)
     messageToDisplay += "%rH";
   }
 }
+
+void getTime(int interval)
+{
+  if ((millis() - delayTime) > interval)
+  {
+    delayTime = millis();
+    timeClient.update();
+  }
+}
 #pragma endregion
 
 #pragma region LED Control
@@ -275,9 +308,10 @@ void ledBlue()
 
 void loop()
 {
+  getClimate(5000);
+  updateOLED(500);
+  getTime(60000);
   MQTT_connect();
   mqttSub();
-  getClimate(5000);
   mqttPub(25000);
-  updateOLED(500);
 }
